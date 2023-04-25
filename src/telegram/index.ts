@@ -33,8 +33,13 @@ export async function parseMessage(m: Message) {
     if (m.chat.type === "private") return null;
     if (!m.text) return null;
     if (!m.from) return null;
+    let msg;
 
-    const msg = m.reply_to_message;
+    if (m.text.includes('#event')) {
+        msg = m;
+    } else {
+        msg = m.reply_to_message;
+    }
     if (!msg || !msg.from) return;
 
     // TODO: https://stackoverflow.com/questions/36733263/how-do-i-get-the-user-picture-avatar-using-the-telegram-bot-chat-api
@@ -53,8 +58,8 @@ export async function parseMessage(m: Message) {
 
     return {
         labelingTags,
-        authorName: msg.from.first_name,
-        authorId: msg.from.username || msg.from.first_name,
+        authorName: msg?.from?.first_name,
+        authorId: msg?.from?.username || msg?.from?.first_name,
         authorAvatar: "",
         banner: "",
         guildName: m.chat.title,

@@ -8,6 +8,7 @@ import {
 import { useCrossbell } from "./handler/crossbell.js";
 import { Network } from "crossbell.js";
 import { confirmString } from "./const.js";
+import { gptRequest } from "./handler/gpt.js";
 
 config();
 
@@ -33,6 +34,16 @@ async function handle(reply_to_message_id: number, result: any, ctx: any) {
     });
 
     try {
+        // gpt request
+        if (result.content.includes("#event")) {
+            const activity = await gptRequest(result.content);
+            ctx.api.editMessageText(
+                res.chat.id,
+                res.message_id,
+                `[Time] ${activity.time} \n[Location] ${activity.location}`
+            );
+        }
+
         const { characterId, noteId } = await useCrossbell(
             result.authorName,
             result.authorId,
@@ -68,14 +79,22 @@ async function handle(reply_to_message_id: number, result: any, ctx: any) {
 bot.on("message:entities:mention", async (ctx) => {
     const curationMsg = ctx.message;
     const msg = ctx.message.reply_to_message;
-    if (!msg || !msg.from) return;
+    if ((!msg || !msg.from) && (!ctx.message.text.includes('#event')) ) return;
     if (!mentionsBot(curationMsg, botId)) return;
 
     const result = await parseMessage(curationMsg);
     if (!result) return;
+    
+    // if it is #event
+    if (result?.content?.includes("#event")) {
+        await handle(ctx.message.message_id, result, ctx);
+    }
+
+    // save quotation to crossbell
+    if (!msg || !msg.from) return;
     if (msg.from.id === curationMsg.from.id) {
         await handle(msg.message_id, result, ctx);
-    } else {
+    } else if (!result.content?.includes("#event")) {
         ctx.reply(
             curationMsg.from.first_name +
                 (curationMsg.from.username

@@ -19,6 +19,7 @@
     "crossbell.js": "^0.19.8",
     "dotenv": "^16.0.3",
     "grammy": "^1.15.3",
+    "openai": "^3.2.1",
     "pinyin": "^3.0.0-alpha.5",
     "telegram": "^2.15.15"
   }
