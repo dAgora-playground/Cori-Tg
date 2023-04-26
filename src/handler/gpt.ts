@@ -1,9 +1,11 @@
+import { connect } from "http2";
 import { Configuration, OpenAIApi, ChatCompletionRequestMessageRoleEnum } from "openai";
 
 
 export async function gptRequest(msgContent: string) {
     
     let result = {
+        topic: null,
         time: null,
         location: null
     };
@@ -43,13 +45,14 @@ export async function gptRequest(msgContent: string) {
     const todayDay = days[day];
 
     const request_message = `
-        [information] ${msgContent} Today is ${todayDay}, ${date}. 
-        [instruction] Generate start time (including date) and location(or not decided) from the activity info.
-        [output json]{
+        [information] ${msgContent} \n Today is ${todayDay}, ${date}. 
+        [instruction] Summarize the topic, generate start time (including date) and location(room like G101, G102, etc or not decided) from the activity info. Reply in json only.
+        [output json format]{
+            topic:
             time: 
             location: 
         }
-        [output]
+        [assistant]
     `
     const params = {
         model: 'gpt-3.5-turbo',
@@ -66,9 +69,10 @@ export async function gptRequest(msgContent: string) {
         // 墙外服务器
         // const response = await openai.createChatCompletion(params);
 
-        const content = response.data.choices[0]?.message?.content;
+        let content = response.data.choices[0]?.message?.content;
         try {
             const gptResult = JSON.parse(content || '{}');
+            result.topic = gptResult?.topic ?? null;
             result.time = gptResult?.time ?? null;
             result.location = gptResult?.location ?? null;    
         } catch (error) {

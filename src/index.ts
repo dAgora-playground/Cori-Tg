@@ -36,11 +36,11 @@ async function handle(reply_to_message_id: number, result: any, ctx: any) {
     try {
         // gpt request
         if (result.content.includes("#event")) {
-            const activity = await gptRequest(result.content);
+            const activity = await gptRequest((result.guildName + '\n' + result.content));
             ctx.api.editMessageText(
                 res.chat.id,
                 res.message_id,
-                `[Time] ${activity.time} \n[Location] ${activity.location}`
+                `[Topic] ${activity.topic} \n[Time] ${activity.time} \n[Location] ${activity.location}`
             );
         }
 
