@@ -1,6 +1,4 @@
-import { Bot } from "grammy";
 import { Message } from "grammy/types";
-import { text } from "stream/consumers";
 import { confirmString } from "../const.js";
 
 export function mentionsBot(m: Message, id: string) {
@@ -16,26 +14,53 @@ export function mentionsBot(m: Message, id: string) {
     return !!mentions?.includes(id);
 }
 
-export function extractTags(m: Message) {
-    if (!m.text) return [];
-    let text = m.text;
-    const fragments = m.entities?.filter((t) => t.type === "mention");
-    fragments?.map((f) => {
-        text =
-            text.substring(0, f.offset) +
-            text.substring(f.offset + f.length + 1);
-    });
-
-    return text.split(/,|，|\//).map((t) => t.trim());
+// remove the substring that starts at `off` and length is `l`
+function removeSubsStr(text: string, off: number, l: number) {
+    return text.substring(0, off) + text.substring(off + l);
 }
 
-export async function parseMessage(m: Message) {
+export function extractLabels(m: Message, botId: string) {
+    let labelingTitle = "";
+    let labelingTags: string[] = [];
+
+    if (!m.text) return { labelingTags, labelingTitle };
+
+    let text = m.text;
+    const entities = m.entities?.filter(
+        (t) => t.type === "mention" || t.type === "hashtag"
+    );
+    entities?.map((f) => {
+        if (f.type === "hashtag") {
+            labelingTags.push(text.slice(f.offset + 1, f.offset + f.length));
+        }
+    });
+
+    // remove all hashtags by offset and length in the entities
+    let l = 0;
+    entities?.map((f) => {
+        if (
+            f.type === "hashtag" ||
+            (f.type === "mention" &&
+                text.substring(f.offset - l, f.offset - l + f.length) ===
+                    "@" + botId)
+        )
+            text = removeSubsStr(text, f.offset - l, f.length);
+        l += f.length;
+    });
+
+    return {
+        labelingTitle: text.trim(),
+        labelingTags,
+    };
+}
+
+export function parseMessage(m: Message, botId: string) {
     if (m.chat.type === "private") return null;
     if (!m.text) return null;
     if (!m.from) return null;
     let msg;
 
-    if (m.text.includes('#event')) {
+    if (m.text.includes("#event")) {
         msg = m;
     } else {
         msg = m.reply_to_message;
@@ -54,16 +79,17 @@ export async function parseMessage(m: Message) {
     //     });
     // });
 
-    const labelingTags = extractTags(m);
+    const { labelingTags, labelingTitle } = extractLabels(m, botId);
 
     return {
+        labelingTitle,
         labelingTags,
         authorName: msg?.from?.first_name,
         authorId: msg?.from?.username || msg?.from?.first_name,
         authorAvatar: "",
         banner: "",
         guildName: m.chat.title,
-        channelName: "", //TODO
+        channelName: msg.forum_topic_created || "", //TODO
         title: "",
         publishedTime: new Date(msg.date * 1000).toUTCString(),
         content: msg.text,
@@ -76,7 +102,6 @@ export async function parseMessage(m: Message) {
 }
 
 export function parseConfirmMessage(m: Message) {
-    console.log(m);
     if (m.chat.type === "private") return null;
     if (!m.text) return null;
     if (!m.from) return null;

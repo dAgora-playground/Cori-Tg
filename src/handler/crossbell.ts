@@ -1,4 +1,5 @@
 import {
+    AttributesMetadata,
     Contract,
     NoteMetadata,
     NoteMetadataAttachmentBase,
@@ -132,7 +133,8 @@ export async function useCrossbell(
     curatorId: string,
     curatorUsername: string,
     curatorAvatar: string,
-    curatorBanner: string
+    curatorBanner: string,
+    attributes?: AttributesMetadata
 ) {
     // If the author has not been created a character, create one first
     // Otherwise, post note directly
@@ -172,6 +174,8 @@ export async function useCrossbell(
         );
     }
 
+    const attrs = attributes?.attributes || [];
+
     const note = {
         sources: [
             "cori",
@@ -191,6 +195,7 @@ export async function useCrossbell(
                     curatorCharacterId +
                     "@crossbell",
             },
+            ...attrs,
         ],
     } as NoteMetadata;
     const noteId = (await contract.postNote(characterId, note)).data.noteId;

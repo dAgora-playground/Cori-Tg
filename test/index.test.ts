@@ -1,6 +1,10 @@
 import { Message } from "grammy/types";
 import { expect, test } from "vitest";
-import { extractTags, mentionsBot, parseConfirmMessage } from "../src/telegram";
+import {
+    extractLabels,
+    mentionsBot,
+    parseConfirmMessage,
+} from "../src/telegram";
 
 const mockMessage = {
     message_id: 277,
@@ -9,7 +13,7 @@ const mockMessage = {
 } as Message;
 
 const mockMessage2 = {
-    text: "@CoriTgBot @adazhang Vibe is hot.",
+    text: "@CoriTgBot @xxxxxxx Vibe is hot.",
     entities: [
         { offset: 0, length: 10, type: "mention" },
         { offset: 11, length: 9, type: "mention" },
@@ -23,10 +27,19 @@ test("mentions work well", () => {
 
 test("extract tags", () => {
     const m = {
-        text: "@CoriTgBot test,test1",
-        entities: [{ offset: 0, length: 10, type: "mention" }],
+        text: "@xxxxxxxxDevBot title is xxx @xxx #event #yes",
+        entities: [
+            { offset: 0, length: 15, type: "mention" },
+            { offset: 34, length: 6, type: "hashtag" },
+            { offset: 41, length: 4, type: "hashtag" },
+        ],
     };
-    expect(extractTags(m as any).join("/")).toBe("test/test1");
+    expect(
+        extractLabels(m as any, "xxxxxxxxDevBot").labelingTags.join("/")
+    ).toBe("event/yes");
+    expect(extractLabels(m as any, "xxxxxxxxDevBot").labelingTitle).toBe(
+        "title is xxx @xxx"
+    );
 });
 
 const confirmMsg = {
@@ -34,8 +47,8 @@ const confirmMsg = {
     from: {
         id: 427702820,
         is_bot: false,
-        first_name: "Adazz",
-        username: "adazhang",
+        first_name: "xxxxx",
+        username: "xxxxxxxx",
     },
     chat: {
         id: -1001932320207,
@@ -62,11 +75,10 @@ const confirmMsg = {
         date: 1681591268,
         message_thread_id: 139,
         text:
-            "Atlas(@WaterTofu) thinks what you said is great, and wants to feed it to me. Reply 'OK' to confirm \n" +
+            "xxxxx(@xxxxxxxxx) thinks what you said is great, and wants to feed it to me. Reply 'OK' to confirm \n" +
             "Note: Ok\n" +
             "Published Time: Sat, 15 Apr 2023 20:33:28 GMT\n" +
             "Tag Suggestions: again",
-        entities: [[Object]],
         is_topic_message: true,
     },
     text: "ok",
