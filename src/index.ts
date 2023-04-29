@@ -52,7 +52,7 @@ async function handleEvent(
         const activityAttributes = [
             {
                 trait_type: "location",
-                value: activity.topic,
+                value: activity.location,
             },
             {
                 trait_type: "time",
