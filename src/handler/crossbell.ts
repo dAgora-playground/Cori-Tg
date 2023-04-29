@@ -7,6 +7,8 @@ import {
 import { Wallet } from "ethers";
 import { pinyin } from "pinyin";
 
+export type Attrs = AttributesMetadata["attributes"];
+
 const formatHandle = (authorId: string, guildId: string) => {
     const formatedGuildName = pinyin(guildId, {
         style: "normal",
@@ -134,7 +136,7 @@ export async function useCrossbell(
     curatorUsername: string,
     curatorAvatar: string,
     curatorBanner: string,
-    attributes?: AttributesMetadata
+    attributes?: Attrs
 ) {
     // If the author has not been created a character, create one first
     // Otherwise, post note directly
@@ -174,7 +176,7 @@ export async function useCrossbell(
         );
     }
 
-    const attrs = attributes?.attributes || [];
+    const attrs = attributes || [];
 
     const note = {
         sources: [
@@ -198,6 +200,7 @@ export async function useCrossbell(
             ...attrs,
         ],
     } as NoteMetadata;
+    console.log(note);
     const noteId = (await contract.postNote(characterId, note)).data.noteId;
     return { characterId, noteId };
 }

@@ -5,7 +5,7 @@ import {
     parseMessage,
     parseConfirmMessage,
 } from "./telegram/index.js";
-import { useCrossbell } from "./handler/crossbell.js";
+import { Attrs, useCrossbell } from "./handler/crossbell.js";
 import { AttributesMetadata, Network, NoteMetadata } from "crossbell.js";
 import { confirmString } from "./const.js";
 import { Activity, gptRequest } from "./handler/gpt.js";
@@ -51,15 +51,15 @@ async function handleEvent(
 
         const activityAttributes = [
             {
-                trait_value: "location",
+                trait_type: "location",
                 value: activity.topic,
             },
             {
-                trait_value: "time",
+                trait_type: "time",
                 display_type: "date",
                 value: activity.time,
             },
-        ] as AttributesMetadata;
+        ] as Attrs;
         const { characterId, noteId } = await useCrossbell(
             result.authorName,
             result.authorId,
@@ -142,11 +142,10 @@ bot.on("message:entities:mention", async (ctx) => {
 
     const msg = thisMsg.reply_to_message;
     if (msg && !msg.forum_topic_created) {
-        console.log(thisMsg);
         // we got a curation message
         const curationMsg = thisMsg;
 
-        const result = parseMessage(curationMsg, botId);
+        const result = parseMessage(curationMsg, botId, false);
         if (!result) return;
 
         if (msg.from?.id === curationMsg.from.id) {
@@ -163,7 +162,7 @@ bot.on("message:entities:mention", async (ctx) => {
                     "\nPublished Time: " +
                     result.publishedTime +
                     "\nTitle Suggestions: " +
-                    result?.labelingTitle +
+                    result?.textWithoutTags +
                     "\nTag Suggestions: " +
                     result?.labelingTags.join("/"),
                 {
@@ -174,7 +173,7 @@ bot.on("message:entities:mention", async (ctx) => {
     } else {
         // we got an event message
         if (!thisMsg.text.includes("#event")) return;
-        const result = parseMessage(thisMsg, botId);
+        const result = parseMessage(thisMsg, botId, true);
 
         if (!result || !result.labelingTags.includes("event")) return;
 

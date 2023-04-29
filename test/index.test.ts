@@ -34,12 +34,22 @@ test("extract tags", () => {
             { offset: 41, length: 4, type: "hashtag" },
         ],
     };
-    expect(
-        extractLabels(m as any, "xxxxxxxxDevBot").labelingTags.join("/")
-    ).toBe("event/yes");
-    expect(extractLabels(m as any, "xxxxxxxxDevBot").labelingTitle).toBe(
-        "title is xxx @xxx"
-    );
+    const label = extractLabels(m as any, "@xxxxxxxxDevBot");
+
+    expect(label.labelingTags.join("/")).toBe("event/yes");
+    expect(label.textWithoutTags).toBe("title is xxx @xxx");
+
+    const m2 = {
+        text: "test test @HealeriverBot #event",
+        entities: [
+            { offset: 10, length: 14, type: "mention" },
+            { offset: 25, length: 6, type: "hashtag" },
+        ],
+    };
+    const label2 = extractLabels(m2 as any, "@HealeriverBot");
+
+    expect(label2.labelingTags.join("/")).toBe("event");
+    expect(label2.textWithoutTags).toBe("test test");
 });
 
 const confirmMsg = {

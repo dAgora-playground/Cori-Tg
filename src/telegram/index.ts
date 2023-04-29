@@ -20,41 +20,42 @@ function removeSubsStr(text: string, off: number, l: number) {
 }
 
 export function extractLabels(m: Message, botId: string) {
-    let labelingTitle = "";
+    let textWithoutTags = "";
     let labelingTags: string[] = [];
 
-    if (!m.text) return { labelingTags, labelingTitle };
+    if (!m.text) return { labelingTags, textWithoutTags };
 
     let text = m.text;
     const entities = m.entities?.filter(
         (t) => t.type === "mention" || t.type === "hashtag"
     );
-    entities?.map((f) => {
-        if (f.type === "hashtag") {
-            labelingTags.push(text.slice(f.offset + 1, f.offset + f.length));
+    entities?.map((e) => {
+        if (e.type === "hashtag") {
+            labelingTags.push(text.slice(e.offset + 1, e.offset + e.length));
         }
     });
 
     // remove all hashtags by offset and length in the entities
     let l = 0;
-    entities?.map((f) => {
+    entities?.map((e) => {
         if (
-            f.type === "hashtag" ||
-            (f.type === "mention" &&
-                text.substring(f.offset - l, f.offset - l + f.length) ===
-                    "@" + botId)
-        )
-            text = removeSubsStr(text, f.offset - l, f.length);
-        l += f.length;
+            e.type === "hashtag" ||
+            (e.type === "mention" &&
+                text.substring(e.offset - l, e.offset - l + e.length) === botId)
+        ) {
+            text = removeSubsStr(text, e.offset - l, e.length);
+            l += e.length;
+        }
     });
-
+    textWithoutTags = text;
+    console.log(labelingTags, textWithoutTags);
     return {
-        labelingTitle: text.trim(),
+        textWithoutTags: text.trim(),
         labelingTags,
     };
 }
 
-export function parseMessage(m: Message, botId: string) {
+export function parseMessage(m: Message, botId: string, isEvent: boolean) {
     if (m.chat.type === "private") return null;
     if (!m.text) return null;
     if (!m.from) return null;
@@ -79,10 +80,9 @@ export function parseMessage(m: Message, botId: string) {
     //     });
     // });
 
-    const { labelingTags, labelingTitle } = extractLabels(m, botId);
-
+    const { labelingTags, textWithoutTags } = extractLabels(m, botId);
     return {
-        labelingTitle,
+        textWithoutTags,
         labelingTags,
         authorName: msg?.from?.first_name,
         authorId: msg?.from?.username || msg?.from?.first_name,
@@ -92,7 +92,7 @@ export function parseMessage(m: Message, botId: string) {
         channelName: msg.forum_topic_created || "", //TODO
         title: "",
         publishedTime: new Date(msg.date * 1000).toUTCString(),
-        content: msg.text,
+        content: isEvent ? textWithoutTags : msg.text,
         attachments: [], //TODO
         curatorId: m.from.username || m.from.first_name,
         curatorUsername: m.from.first_name,
