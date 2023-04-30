@@ -89,8 +89,8 @@ export function parseMessage(m: Message, botId: string, isEvent: boolean) {
         authorAvatar: "",
         banner: "",
         guildName: m.chat.title,
-        channelName: msg.forum_topic_created || "", //TODO
-        title: "",
+        channelName: m.reply_to_message?.forum_topic_created?.name,
+        title: isEvent ? "" : textWithoutTags,
         publishedTime: new Date(msg.date * 1000).toUTCString(),
         content: isEvent ? textWithoutTags : msg.text,
         attachments: [], //TODO

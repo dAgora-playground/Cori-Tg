@@ -6,9 +6,10 @@ import {
     parseConfirmMessage,
 } from "./telegram/index.js";
 import { Attrs, useCrossbell } from "./handler/crossbell.js";
-import { AttributesMetadata, Network, NoteMetadata } from "crossbell.js";
+import { Network } from "crossbell.js";
 import { confirmString } from "./const.js";
 import { Activity, gptRequest } from "./handler/gpt.js";
+import { config as settings } from "./config/index.js";
 
 config();
 
@@ -35,13 +36,14 @@ async function handleEvent(
     ctx: any
 ) {
     try {
-        const eDate = new Date(activity.time).toLocaleString("en-US", {
+        const { time, location, topic } = activity;
+        const eDate = new Date(time).toLocaleString("en-US", {
             timeZone: "Europe/Podgorica",
             timeStyle: "short",
             dateStyle: "medium",
         });
 
-        const parsedData = `[Topic] ${activity.topic} \n[Time] ${eDate} \n[Location] ${activity.location}`;
+        const parsedData = `[Topic] ${topic} \n[Time] ${eDate} \n[Location] ${location}`;
 
         ctx.api.editMessageText(
             res.chat.id,
@@ -52,37 +54,45 @@ async function handleEvent(
         const activityAttributes = [
             {
                 trait_type: "location",
-                value: activity.location,
+                value: location,
             },
             {
                 trait_type: "time",
                 display_type: "date",
-                value: activity.time,
+                value: time,
             },
         ] as Attrs;
-        const { characterId, noteId } = await useCrossbell(
-            result.authorName,
-            result.authorId,
-            result.authorAvatar,
-            result.banner,
-            result.guildName,
-            result.channelName,
-            activity.topic,
-            result.publishedTime,
-            result.labelingTags,
-            result.content,
-            result.attachments,
-            result.curatorId,
-            result.curatorUsername,
-            result.curatorAvatar,
-            result.curatorBanner,
-            activityAttributes
-        );
-        ctx.api.editMessageText(
-            res.chat.id,
-            res.message_id,
-            `${parsedData}\n✅ Material pushed to Crossbell! See:  https://crossbell.io/notes/${characterId}-${noteId}`
-        );
+
+        if (result.channelName) {
+            activityAttributes.push({
+                trait_type: "telegram topic name",
+                value: result.channelName,
+            });
+        }
+        if (settings.crossbell) {
+            const { characterId, noteId } = await useCrossbell(
+                result.authorName,
+                result.authorId,
+                result.authorAvatar,
+                result.banner,
+                result.guildName,
+                topic,
+                result.publishedTime,
+                result.labelingTags,
+                result.content,
+                result.attachments,
+                result.curatorId,
+                result.curatorUsername,
+                result.curatorAvatar,
+                result.curatorBanner,
+                activityAttributes
+            );
+            ctx.api.editMessageText(
+                res.chat.id,
+                res.message_id,
+                `${parsedData}\n✅ Material pushed to Crossbell! See:  https://crossbell.io/notes/${characterId}-${noteId}`
+            );
+        }
     } catch (e: any) {
         console.log(e.message);
         ctx.api.editMessageText(
@@ -103,28 +113,29 @@ async function handleCuration(
     });
 
     try {
-        const { characterId, noteId } = await useCrossbell(
-            result.authorName,
-            result.authorId,
-            result.authorAvatar,
-            result.banner,
-            result.guildName,
-            result.channelName,
-            result.title,
-            result.publishedTime,
-            result.labelingTags,
-            result.content,
-            result.attachments,
-            result.curatorId,
-            result.curatorUsername,
-            result.curatorAvatar,
-            result.curatorBanner
-        );
-        ctx.api.editMessageText(
-            res.chat.id,
-            res.message_id,
-            `✅ Material pushed to Crossbell! See:  https://crossbell.io/notes/${characterId}-${noteId}`
-        );
+        if (settings.crossbell) {
+            const { characterId, noteId } = await useCrossbell(
+                result.authorName,
+                result.authorId,
+                result.authorAvatar,
+                result.banner,
+                result.guildName,
+                result.title,
+                result.publishedTime,
+                result.labelingTags,
+                result.content,
+                result.attachments,
+                result.curatorId,
+                result.curatorUsername,
+                result.curatorAvatar,
+                result.curatorBanner
+            );
+            ctx.api.editMessageText(
+                res.chat.id,
+                res.message_id,
+                `✅ Material pushed to Crossbell! See:  https://crossbell.io/notes/${characterId}-${noteId}`
+            );
+        }
     } catch (e: any) {
         console.log(e.message);
         ctx.api.editMessageText(
@@ -183,10 +194,21 @@ bot.on("message:entities:mention", async (ctx) => {
                 reply_to_message_id: thisMsg.message_id,
             });
 
-            const activity = await gptRequest(
-                result.guildName + "\n" + result.content
-            );
-            if (!activity || !activity.time) return;
+            let activity: Activity;
+            if (settings.gpt) {
+                const data = await gptRequest(
+                    result.guildName + "\n" + result.content
+                );
+                if (!data || !data.time) return;
+                activity = data;
+            } else {
+                activity = {
+                    time: new Date().toISOString(),
+                    location: "",
+                    topic: "",
+                };
+            }
+
             await handleEvent(res, activity, result, ctx);
         }
     }
