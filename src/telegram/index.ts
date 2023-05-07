@@ -55,6 +55,27 @@ export function extractLabels(m: Message, botId: string) {
     };
 }
 
+export interface MessageBase {
+    authorName: string;
+    authorId: string;
+    authorAvatar: string;
+    banner: string;
+    guildName: string;
+    publishedTime: string;
+    content: string;
+    attachments: any[]; //TODO
+}
+export interface ParsedResult extends MessageBase {
+    textWithoutTags?: string;
+    labelingTags?: string[];
+    channelName?: string;
+    title?: string;
+    curatorId?: string;
+    curatorUsername?: string;
+    curatorAvatar?: string;
+    curatorBanner?: string;
+}
+
 export function parseMessage(m: Message, botId: string, isEvent: boolean) {
     if (m.chat.type === "private") return null;
     if (!m.text) return null;
@@ -98,7 +119,21 @@ export function parseMessage(m: Message, botId: string, isEvent: boolean) {
         curatorUsername: m.from.first_name,
         curatorAvatar: "",
         curatorBanner: "",
-    };
+    } as ParsedResult;
+}
+
+export function parseBasicMessage(msg: Message) {
+    if (msg.chat.type === "private") return null;
+    return {
+        authorName: msg?.from?.first_name,
+        authorId: msg?.from?.username || msg?.from?.first_name,
+        authorAvatar: "",
+        banner: "",
+        guildName: msg.chat.title,
+        publishedTime: new Date(msg.date * 1000).toUTCString(),
+        content: msg.text,
+        attachments: [], //TODO
+    } as MessageBase;
 }
 
 export function parseConfirmMessage(m: Message) {
@@ -150,7 +185,7 @@ export function parseConfirmMessage(m: Message) {
         banner: "",
         guildName: m.chat.title,
         channelName: "", //TODO
-        title: "",
+        title: "", //TODO
         publishedTime,
         content,
         attachments: [], //TODO
@@ -158,5 +193,5 @@ export function parseConfirmMessage(m: Message) {
         curatorUsername,
         curatorAvatar: "",
         curatorBanner: "",
-    };
+    } as ParsedResult;
 }

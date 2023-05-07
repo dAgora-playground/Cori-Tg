@@ -4,12 +4,17 @@ import {
     mentionsBot,
     parseMessage,
     parseConfirmMessage,
+    ParsedResult,
+    parseBasicMessage,
+    MessageBase,
 } from "./telegram/index.js";
 import { Attrs, useCrossbell } from "./handler/crossbell.js";
 import { Network } from "crossbell.js";
 import { confirmString } from "./const.js";
 import { Activity, gptRequest } from "./handler/gpt.js";
 import { config as settings } from "./config/index.js";
+import { Message } from "grammy/types";
+import { addKeyValue, loadKeyValuePairs } from "./utils/keyValueStore.js";
 
 config();
 
@@ -32,24 +37,17 @@ bot.command("start", (ctx) => ctx.reply("Welcome! Up and running."));
 async function handleEvent(
     res: any,
     activity: Activity,
-    result: any,
+    result: ParsedResult,
     ctx: any
 ) {
     try {
         const { time, location, topic } = activity;
+
         const eDate = new Date(time).toLocaleString("en-US", {
             timeZone: "Europe/Podgorica",
             timeStyle: "short",
             dateStyle: "medium",
         });
-
-        const parsedData = `[Topic] ${topic} \n[Time] ${eDate} \n[Location] ${location}`;
-
-        ctx.api.editMessageText(
-            res.chat.id,
-            res.message_id,
-            `${parsedData}\nPushing to chain......`
-        );
 
         const activityAttributes = [
             {
@@ -63,6 +61,16 @@ async function handleEvent(
             },
         ] as Attrs;
 
+        result.title = topic;
+
+        const parsedData = `[Topic] ${topic} \n[Time] ${eDate} \n[Location] ${location}`;
+
+        ctx.api.editMessageText(
+            res.chat.id,
+            res.message_id,
+            `${parsedData}\nPushing to chain......`
+        );
+
         if (result.channelName) {
             activityAttributes.push({
                 trait_type: "telegram topic name",
@@ -70,28 +78,15 @@ async function handleEvent(
             });
         }
         if (settings.crossbell) {
-            const { characterId, noteId } = await useCrossbell(
-                result.authorName,
-                result.authorId,
-                result.authorAvatar,
-                result.banner,
-                result.guildName,
-                topic,
-                result.publishedTime,
-                result.labelingTags,
-                result.content,
-                result.attachments,
-                result.curatorId,
-                result.curatorUsername,
-                result.curatorAvatar,
-                result.curatorBanner,
-                activityAttributes
-            );
+            const { characterId, noteId } = await useCrossbell(result, {
+                attributes: activityAttributes,
+            });
             ctx.api.editMessageText(
                 res.chat.id,
                 res.message_id,
                 `${parsedData}\n✅ Material pushed to Crossbell! See:  https://crossbell.io/notes/${characterId}-${noteId}`
             );
+            return { characterId, noteId };
         }
     } catch (e: any) {
         console.log(e.message);
@@ -105,7 +100,7 @@ async function handleEvent(
 
 async function handleCuration(
     reply_to_message_id: number,
-    result: any,
+    result: ParsedResult,
     ctx: any
 ) {
     const res = await ctx.reply("Collecting......", {
@@ -114,22 +109,7 @@ async function handleCuration(
 
     try {
         if (settings.crossbell) {
-            const { characterId, noteId } = await useCrossbell(
-                result.authorName,
-                result.authorId,
-                result.authorAvatar,
-                result.banner,
-                result.guildName,
-                result.title,
-                result.publishedTime,
-                result.labelingTags,
-                result.content,
-                result.attachments,
-                result.curatorId,
-                result.curatorUsername,
-                result.curatorAvatar,
-                result.curatorBanner
-            );
+            const { characterId, noteId } = await useCrossbell(result);
             ctx.api.editMessageText(
                 res.chat.id,
                 res.message_id,
@@ -146,21 +126,49 @@ async function handleCuration(
     }
 }
 
+async function handleEventReply(reply2: NoteId, result: MessageBase, ctx: any) {
+    try {
+        if (settings.crossbell) {
+            await useCrossbell(result, {
+                reply2,
+            });
+        }
+    } catch (e: any) {
+        console.log(e.message);
+    }
+}
+
+const eventMsgIds = new Map<string, string>();
+export interface NoteId {
+    characterId: number;
+    noteId: number;
+}
+
+function isReply2SomeOne(msg: Message) {
+    const replyingMsg = msg.reply_to_message;
+    return replyingMsg && !replyingMsg.forum_topic_created;
+}
+
+const makeMsgId = (msg: Message) => `${msg.chat.id}-${msg.message_id}`;
+
 // Handle other messages.
 bot.on("message:entities:mention", async (ctx) => {
     const thisMsg = ctx.message;
     if (!mentionsBot(thisMsg, botId)) return;
 
     const msg = thisMsg.reply_to_message;
-    if (msg && !msg.forum_topic_created) {
+    // is replying to someone, other than the "topic"
+
+    if (isReply2SomeOne(thisMsg)) {
         // we got a curation message
         const curationMsg = thisMsg;
 
         const result = parseMessage(curationMsg, botId, false);
         if (!result) return;
 
-        if (msg.from?.id === curationMsg.from.id) {
-            await handleCuration(msg.message_id, result, ctx);
+        const { from, message_id, text } = msg!;
+        if (from?.id === curationMsg.from.id) {
+            await handleCuration(message_id, result, ctx);
         } else {
             ctx.reply(
                 curationMsg.from.first_name +
@@ -169,15 +177,15 @@ bot.on("message:entities:mention", async (ctx) => {
                         : "") +
                     confirmString +
                     " Reply 'OK' (or anything) to confirm \nNote: " +
-                    msg.text +
+                    text +
                     "\nPublished Time: " +
                     result.publishedTime +
                     "\nTitle Suggestions: " +
                     result?.textWithoutTags +
                     "\nTag Suggestions: " +
-                    result?.labelingTags.join("/"),
+                    result?.labelingTags?.join("/"),
                 {
-                    reply_to_message_id: msg.message_id,
+                    reply_to_message_id: message_id,
                 }
             );
         }
@@ -186,7 +194,7 @@ bot.on("message:entities:mention", async (ctx) => {
         if (!thisMsg.text.includes("#event")) return;
         const result = parseMessage(thisMsg, botId, true);
 
-        if (!result || !result.labelingTags.includes("event")) return;
+        if (!result || !result.labelingTags?.includes("event")) return;
 
         // if it is #event
         if (result.labelingTags.includes("event")) {
@@ -209,23 +217,55 @@ bot.on("message:entities:mention", async (ctx) => {
                 };
             }
 
-            await handleEvent(res, activity, result, ctx);
+            const data = await handleEvent(res, activity, result, ctx);
+            // record event message id
+            const msgId = makeMsgId(thisMsg);
+            if (data) eventMsgIds.set(msgId, JSON.stringify(data));
+            // add (msgId, data) to a file
+            await addKeyValue(msgId, JSON.stringify(data)).catch(console.log);
         }
     }
 });
 
+export function isUsefulReply(thisMsg: Message) {
+    const lastMsg = thisMsg.reply_to_message;
+
+    let reply2: "event" | "confirmMsg" | null = null;
+    if (!isReply2SomeOne(thisMsg)) return;
+
+    const { text, from } = lastMsg!;
+
+    if (lastMsg!.text?.includes("#event") && lastMsg!.text?.includes(botId)) {
+        reply2 = "event";
+    } else if (from?.is_bot && text?.includes(confirmString)) {
+        reply2 = "confirmMsg";
+    }
+
+    return reply2;
+}
+
 bot.on("message", async (ctx) => {
-    const lastMsg = ctx.message.reply_to_message;
-    if (!lastMsg || !lastMsg.text || !lastMsg.from?.is_bot) return;
-
-    const result = parseConfirmMessage(ctx.message);
-
-    if (lastMsg.text.includes(confirmString)) {
-        handleCuration(lastMsg.message_id, result, ctx);
+    const thisMsg = ctx.message;
+    const reply2 = isUsefulReply(thisMsg);
+    if (!reply2) return;
+    if (reply2 === "event") {
+        let noteIdStr = eventMsgIds.get(makeMsgId(thisMsg.reply_to_message!));
+        if (noteIdStr) {
+            const noteId = JSON.parse(noteIdStr);
+            const result = parseBasicMessage(ctx.message);
+            if (!result) return;
+            handleEventReply(noteId, result, ctx);
+        }
+    } else if (reply2 === "confirmMsg") {
+        const result = parseConfirmMessage(ctx.message);
+        if (!result) return;
+        handleCuration(thisMsg.reply_to_message!.message_id, result, ctx);
     }
 });
 
 async function main() {
+    // initialize eventMsgIds
+    await loadKeyValuePairs(eventMsgIds);
     bot.start();
 }
 

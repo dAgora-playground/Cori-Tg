@@ -1,4 +1,3 @@
-import { connect } from "http2";
 import {
     Configuration,
     OpenAIApi,
@@ -61,7 +60,8 @@ export async function gptRequest(msgContent: string) {
 
     const request_message = `
         [information] ${msgContent} \n Today is ${todayDay}, ${date}. 
-        [instruction] Summarize the topic, generate start date time (assume the context is timezone UTC+${tzOffset}, in ISO format) and location(room like Dorm, G100, or some website etc or not decided) from the activity info. Reply in json only.
+        [instruction] Summarize the topic, generate start date time (assume the context is timezone UTC+${tzOffset}, in ISO format) and location(room like Dorm, G100, or some website etc or not decided) from the activity info.
+        Reply must be json format. No other words.
         [output json format]{
             topic:
             time: 

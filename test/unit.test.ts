@@ -1,10 +1,6 @@
 import { Message } from "grammy/types";
 import { expect, test } from "vitest";
-import {
-    extractLabels,
-    mentionsBot,
-    parseConfirmMessage,
-} from "../src/telegram";
+import { extractLabels, mentionsBot } from "../src/telegram";
 
 const mockMessage = {
     message_id: 277,
@@ -50,52 +46,4 @@ test("extract tags", () => {
 
     expect(label2.labelingTags.join("/")).toBe("event");
     expect(label2.textWithoutTags).toBe("test test");
-});
-
-const confirmMsg = {
-    message_id: 824,
-    from: {
-        id: 427702820,
-        is_bot: false,
-        first_name: "xxxxx",
-        username: "xxxxxxxx",
-    },
-    chat: {
-        id: -1001932320207,
-        title: "zuzalu‘s agora",
-        is_forum: true,
-        type: "supergroup",
-    },
-    date: 1681591285,
-    message_thread_id: 139,
-    reply_to_message: {
-        message_id: 823,
-        from: {
-            id: 5745158650,
-            is_bot: true,
-            first_name: "Cori",
-            username: "CoriTgBot",
-        },
-        chat: {
-            id: -1001932320207,
-            title: "zuzalu‘s agora",
-            is_forum: true,
-            type: "supergroup",
-        },
-        date: 1681591268,
-        message_thread_id: 139,
-        text:
-            "xxxxx(@xxxxxxxxx) thinks what you said is great, and wants to feed it to me. Reply 'OK' to confirm \n" +
-            "Note: Ok\n" +
-            "Published Time: Sat, 15 Apr 2023 20:33:28 GMT\n" +
-            "Tag Suggestions: again",
-        is_topic_message: true,
-    },
-    text: "ok",
-    is_topic_message: true,
-};
-
-test("parse confirm msg ", () => {
-    const res = parseConfirmMessage(confirmMsg as any);
-    console.log(res);
 });

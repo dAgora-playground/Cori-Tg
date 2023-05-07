@@ -2,10 +2,12 @@ import {
     AttributesMetadata,
     Contract,
     NoteMetadata,
-    NoteMetadataAttachmentBase,
+    Result,
 } from "crossbell.js";
 import { Wallet } from "ethers";
 import { pinyin } from "pinyin";
+import { ParsedResult } from "../telegram";
+import { NoteId } from "..";
 
 export type Attrs = Exclude<AttributesMetadata["attributes"], null | undefined>;
 
@@ -121,61 +123,78 @@ export const getAdminContract = async (priKey: string) => {
 };
 
 export async function useCrossbell(
-    username: string,
-    authorId: string,
-    authorAvatar: string,
-    banner: string,
-    guildName: string,
-    title: string,
-    publishedTime: string,
-    tags: string[],
-    content: string,
-    attachments: NoteMetadataAttachmentBase<"address">[],
-    curatorId: string,
-    curatorUsername: string,
-    curatorAvatar: string,
-    curatorBanner: string,
-    attributes?: Attrs
+    result: ParsedResult,
+    data?: {
+        attributes?: Attrs;
+        reply2?: NoteId;
+    }
 ) {
     // If the author has not been created a character, create one first
     // Otherwise, post note directly
     const priKey = process.env.adminPrivateKey;
     if (!priKey) throw Error("Admin has not been set up.");
     const { admin, contract } = await getAdminContract(priKey);
-    const handle = formatHandle(authorId, guildName);
 
-    const curatorHandle = formatHandle(curatorId, guildName);
+    // getAttrs from result
+    const {
+        labelingTags,
+        authorName,
+        authorId,
+        authorAvatar,
+        banner,
+        guildName,
+        title,
+        publishedTime,
+        content,
+        attachments,
+        curatorId,
+        curatorUsername,
+        curatorAvatar,
+        curatorBanner,
+    } = result;
+
+    const handle = formatHandle(authorId, guildName);
 
     //TODO: is valid handle?
     if (handle.length < 3) {
         throw new Error("handle length is wrong");
     }
 
+    const attrs = data?.attributes || [];
+
     const characterId = await getCharacterByHandle(
         contract,
         admin,
         handle,
-        username,
+        authorName,
         authorAvatar,
         authorId,
         banner
     );
-
     let curatorCharacterId = characterId;
-    if (curatorHandle !== handle) {
-        curatorCharacterId = await getCharacterByHandle(
-            contract,
-            admin,
-            curatorHandle,
-            curatorUsername,
-            curatorAvatar,
-            curatorId,
-            curatorBanner,
-            false
-        );
-    }
+    if (curatorId) {
+        const curatorHandle = formatHandle(curatorId, guildName);
+        if (curatorHandle !== handle) {
+            curatorCharacterId = await getCharacterByHandle(
+                contract,
+                admin,
+                curatorHandle,
+                curatorUsername || curatorHandle,
+                curatorAvatar || "",
+                curatorId,
+                curatorBanner || "",
+                false
+            );
 
-    const attrs = attributes || [];
+            attrs.push({
+                trait_type: "curator",
+                value:
+                    "csb://account:character-" +
+                    curatorCharacterId +
+                    "@crossbell",
+            });
+        }
+    }
 
     const note = {
         sources: [
@@ -185,21 +204,32 @@ export async function useCrossbell(
         ],
         title,
         content,
-        tags,
         attachments,
         date_published: new Date(publishedTime).toISOString(),
-        attributes: [
-            {
-                trait_type: "curator",
-                value:
-                    "csb://account:character-" +
-                    curatorCharacterId +
-                    "@crossbell",
-            },
-            ...attrs,
-        ],
+        attributes: [...attrs],
     } as NoteMetadata;
+
+    if (labelingTags) note.tags = labelingTags;
     console.debug("[DEBUG]", note);
-    const noteId = (await contract.postNote(characterId, note)).data.noteId;
+
+    let res: Result<
+        {
+            noteId: number;
+        },
+        true
+    >;
+
+    if (data?.reply2) {
+        res = await contract.postNoteForNote(
+            characterId,
+            note,
+            data.reply2.characterId,
+            data.reply2.noteId
+        );
+    } else {
+        res = await contract.postNote(characterId, note);
+    }
+    const noteId = res.data.noteId;
+
     return { characterId, noteId };
 }
