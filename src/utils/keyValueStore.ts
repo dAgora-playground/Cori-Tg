@@ -6,96 +6,50 @@ const rootPath = path.resolve("./");
 
 const fileName = "store/keyValueStore.json";
 
-export function addKeyValue(key: string, value: string) {
+export function addKeyValue(key: string, value: string): boolean {
     const filePath = path.join(rootPath, fileName);
-    return new Promise((resolve, reject) => {
-        fs.access(filePath, fs.constants.F_OK, (err) => {
-            if (err) {
-                fs.writeFile(filePath, "{}", (err) => {
-                    if (err) return reject(err);
-                    else {
-                        let store: Record<string, string> = {};
-                        store[key] = value;
-                        // TODO: https://stackoverflow.com/questions/16316330/how-to-write-file-if-parent-folder-doesnt-exist
-                        // TODO: what if writeFile is interrupted......
-                        fs.writeFile(
-                            filePath,
-                            JSON.stringify(store, null, 2),
-                            function (err) {
-                                if (err) {
-                                    return reject(err);
-                                }
-                                resolve("Key value pair added successfully.");
-                            }
-                        );
-                    }
-                });
-            } else {
-                fs.readFile(filePath, "utf-8", function (err, data) {
-                    if (err) {
-                        return reject(err);
-                    }
 
-                    let store: Record<string, string> = {};
+    try {
+        if (!fs.existsSync(filePath)) {
+            fs.writeFileSync(filePath, "{}");
+        }
 
-                    if (data) {
-                        try {
-                            store = JSON.parse(data);
-                        } catch (err) {
-                            return reject(err);
-                        }
-                    }
+        const data = fs.readFileSync(filePath, "utf-8");
+        let store: Record<string, string> = {};
 
-                    store[key] = value;
+        if (data) {
+            store = JSON.parse(data);
+        }
 
-                    fs.writeFile(
-                        filePath,
-                        JSON.stringify(store, null, 2),
-                        function (err) {
-                            if (err) {
-                                return reject(err);
-                            }
-                            resolve("Key value pair added successfully.");
-                        }
-                    );
-                });
-            }
-        });
-    });
+        store[key] = value;
+        fs.writeFileSync(filePath, JSON.stringify(store, null, 2));
+
+        return true;
+    } catch (err) {
+        throw err;
+    }
 }
 
-export function loadKeyValuePairs(
-    targetMap: Map<string, string>
-): Promise<void> {
+export function loadKeyValuePairs(targetMap: Map<string, string>): void {
     const filePath = path.join(rootPath, fileName);
     console.log(filePath);
 
-    return new Promise((resolve, reject) => {
-        fs.access(filePath, fs.constants.F_OK, (err) => {
-            if (err) {
-                resolve();
-            }
-            fs.readFile(filePath, "utf-8", function (err, data) {
-                if (err) {
-                    return reject(err);
-                }
+    try {
+        if (!fs.existsSync(filePath)) {
+            return;
+        }
 
-                let store: Record<string, string> = {};
+        const data = fs.readFileSync(filePath, "utf-8");
+        let store: Record<string, string> = {};
 
-                if (data) {
-                    try {
-                        store = JSON.parse(data);
-                    } catch (err) {
-                        return reject(err);
-                    }
-                }
+        if (data) {
+            store = JSON.parse(data);
+        }
 
-                for (const [key, value] of Object.entries(store)) {
-                    targetMap.set(key, value);
-                }
-                resolve();
-            });
-            fs.close;
-        });
-    });
+        for (const [key, value] of Object.entries(store)) {
+            targetMap.set(key, value);
+        }
+    } catch (err) {
+        throw err;
+    }
 }
