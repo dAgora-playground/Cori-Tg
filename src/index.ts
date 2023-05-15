@@ -222,7 +222,7 @@ bot.on("message:entities:mention", async (ctx) => {
             const msgId = makeMsgId(thisMsg);
             if (data) eventMsgIds.set(msgId, JSON.stringify(data));
             // add (msgId, data) to a file
-            addKeyValue(msgId, JSON.stringify(data)).catch(console.log);
+            addKeyValue(msgId, JSON.stringify(data));
         }
     }
 });
