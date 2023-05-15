@@ -100,6 +100,12 @@ const getCharacterByHandle = async (
             banner
         );
         //TODO: follow
+        if (process.env.ADMIN_CHARACTER)
+            await c.linkCharacter(
+                process.env.ADMIN_CHARACTER,
+                characterId,
+                "follow"
+            );
     }
     if (checkAdminAuthorized) {
         const characterOwner = await c.contract.ownerOf(characterId);
