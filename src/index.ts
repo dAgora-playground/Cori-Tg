@@ -12,7 +12,7 @@ import { Attrs, useCrossbell } from "./handler/crossbell.js";
 import { Network } from "crossbell.js";
 import { confirmString } from "./const.js";
 import { Activity, gptRequest } from "./handler/gpt.js";
-import { config as settings } from "./config/index.js";
+import { makeUrl, config as settings } from "./config/index.js";
 import { Message } from "grammy/types";
 import { addKeyValue, loadKeyValuePairs } from "./utils/keyValueStore.js";
 
@@ -84,7 +84,10 @@ async function handleEvent(
             ctx.api.editMessageText(
                 res.chat.id,
                 res.message_id,
-                `${parsedData}\n✅ Material pushed to Crossbell! See:  https://crossbell.io/notes/${characterId}-${noteId}`
+                `${parsedData}\n✅ Material pushed to Crossbell! See: ${makeUrl(
+                    characterId,
+                    noteId
+                )}`
             );
             return { characterId, noteId };
         }
@@ -113,7 +116,10 @@ async function handleCuration(
             ctx.api.editMessageText(
                 res.chat.id,
                 res.message_id,
-                `✅ Material pushed to Crossbell! See:  https://crossbell.io/notes/${characterId}-${noteId}`
+                `✅ Material pushed to Crossbell! See: ${makeUrl(
+                    characterId,
+                    noteId
+                )}`
             );
         }
     } catch (e: any) {
