@@ -3,6 +3,7 @@ import {
     OpenAIApi,
     ChatCompletionRequestMessageRoleEnum,
 } from "openai";
+import { config } from "../config";
 
 export interface Activity {
     topic: string;
@@ -32,18 +33,16 @@ export async function gptRequest(msgContent: string) {
         },
     };
 
-    // Montenegro's time zone is GMT+8
-    const tzOffset = 8;
-
     // Create Date object and get GMT time
     const today = new Date();
-    const utc = today.getTime() + today.getTimezoneOffset() * 60 * 1000;
 
-    // Add time zone offset (in hours) and get local Montenegrin time
-    const montenegro = new Date(utc + 3600000 * tzOffset);
+    // Add time zone offset (in hours) and get local time
+    const targetTime = new Date(
+        new Date().toLocaleString("en-US", { timeZone: config.timeZone })
+    );
 
     // Format date
-    const date = montenegro.toISOString().split("T")[0];
+    const date = targetTime.toISOString().split("T")[0];
 
     // getDay
     const days = [
@@ -60,7 +59,7 @@ export async function gptRequest(msgContent: string) {
 
     const request_message = `
         [information] ${msgContent} \n Today is ${todayDay}, ${date}. 
-        [instruction] Summarize the topic, generate start date time (assume the context is timezone UTC+${tzOffset}, in ISO format) and location(room like Dorm, G100, or some website etc or not decided) from the activity info.
+        [instruction] Assume you are in timezone ${config.timeZone}. Summarize the topic, generate start date time (in ISO format) and location(room like Dorm, G100, or some website etc or not decided) from the activity info.
         Reply must be json format. No other words.
         [output json format]{
             topic:

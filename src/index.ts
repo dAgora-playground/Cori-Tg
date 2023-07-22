@@ -44,7 +44,7 @@ async function handleEvent(
         const { time, location, topic } = activity;
 
         const eDate = new Date(time).toLocaleString("en-US", {
-            timeZone: "Europe/Podgorica",
+            timeZone: settings.timeZone,
             timeStyle: "short",
             dateStyle: "medium",
         });
