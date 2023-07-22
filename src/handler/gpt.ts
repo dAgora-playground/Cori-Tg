@@ -32,8 +32,8 @@ export async function gptRequest(msgContent: string) {
         },
     };
 
-    // Montenegro's time zone is GMT+2
-    const tzOffset = 2;
+    // Montenegro's time zone is GMT+8
+    const tzOffset = 8;
 
     // Create Date object and get GMT time
     const today = new Date();
