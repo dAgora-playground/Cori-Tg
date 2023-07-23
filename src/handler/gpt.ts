@@ -65,6 +65,7 @@ export async function gptRequest(msgContent: string) {
         }
         [assistant]
     `;
+    console.log(request_message);
     const params = {
         model: "gpt-3.5-turbo",
         messages: [
