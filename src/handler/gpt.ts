@@ -3,7 +3,7 @@ import {
     OpenAIApi,
     ChatCompletionRequestMessageRoleEnum,
 } from "openai";
-import { config } from "../config";
+import { config } from "../config/index.js";
 
 export interface Activity {
     topic: string;
@@ -33,9 +33,6 @@ export async function gptRequest(msgContent: string) {
         },
     };
 
-    // Create Date object and get GMT time
-    const today = new Date();
-
     // Add time zone offset (in hours) and get local time
     const targetTime = new Date(
         new Date().toLocaleString("en-US", { timeZone: config.timeZone })
@@ -54,7 +51,7 @@ export async function gptRequest(msgContent: string) {
         "Friday",
         "Saturday",
     ];
-    const day = today.getDay();
+    const day = targetTime.getDay();
     const todayDay = days[day];
 
     const request_message = `
